@@ -10,6 +10,9 @@
 // before this entry was assembled. This program's only job is to
 // place the finished PNG in the grader's output directory, after
 // checking it against the bounty gate: non-empty and under 1 MiB.
+// The copy itself is then verified by reading it back, so a
+// partial or truncated write fails loudly instead of shipping a
+// broken file.
 //
 // Local run:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
@@ -31,4 +34,17 @@ if (png.length > MAX_BYTES) {
   );
 }
 
-writeFileSync(join(outDir, "entry.png"), png);
+const outPath = join(outDir, "entry.png");
+writeFileSync(outPath, png);
+
+// Verify the copy: re-read it and require the same non-empty size,
+// so a partial or truncated write fails here instead of shipping.
+const copied = readFileSync(outPath);
+if (copied.length === 0) {
+  throw new Error("copied entry.png is empty");
+}
+if (copied.length !== png.length) {
+  throw new Error(
+    `copied entry.png is ${copied.length} bytes, expected ${png.length}`,
+  );
+}
